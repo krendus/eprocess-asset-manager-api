@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, BackHandler, Image, Platform, Dimensions } from 'react-native'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Input from '../../components/Input';
 import Dropdown from '../../components/Dropdown';
@@ -10,6 +10,8 @@ import DatePicker from '../../components/DatePicker';
 import { ToastAndroid } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
 import { useUserStore } from '../../store/user.store';
+import { createAssetRequest } from '../../api/assets';
+import { uploadToCloudinary } from '../../utils/utils';
 
 const AddAsset = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -25,6 +27,8 @@ const AddAsset = ({ navigation }) => {
   const [ratio, setRatio] = useState("4:3");
   const { height, width } = Dimensions.get("window");
   const [camera, setCamera] = useState(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const initCamera = async () => {
     const { status } = await Camera.requestCameraPermissionsAsync();
@@ -45,23 +49,21 @@ const AddAsset = ({ navigation }) => {
       console.log(e)
     }
   }
-  const handleCreateAssetResponse = (data, err) => {
+  const handleCreateAssetResponse = (data, message) => {
     setLoading(false);
     if(data) {
-        console.log("Assets created");
         if(Platform.OS === "android") {
-          ToastAndroid.show("Asset Created", ToastAndroid.SHORT)
+          ToastAndroid.show(message, ToastAndroid.SHORT)
         }
         navigation.navigate("Dashboard", {
           screen: "Home"
         })
     } else {
       if(Platform.OS === "android") {
-        ToastAndroid.show("Error creating asset", ToastAndroid.SHORT)
+        ToastAndroid.show(message, ToastAndroid.SHORT)
       } else {    
-          Alert.alert("Error creating asset", "Error creating asset");
+          Alert.alert("Error", message);
       }
-        console.log(err);
     }
   }
   const getRatioStyling = () => {
@@ -80,16 +82,30 @@ const AddAsset = ({ navigation }) => {
     if(loading) return;
     setLoading(true);
     if ( accessories && serialNumber && asset && capturedImg && date ) {
+        setImageUploading(true);
+        const uploadedImage = await uploadToCloudinary("samuraidev", capturedImg.uri, "asset", "839935435497676", "zjuuiycx", setUploadProgress)
         const item = {
           name: asset.trim(),
-          received_date: date.toDateString(),
-          serial_number: serialNumber.trim(),
-          image: capturedImg,
+          receivedDate: date,
+          serialNumber: serialNumber.trim(),
+          imageURL: uploadedImage.secure_url,
           accessories: accessories.trim(),
-          status: "In possession",
-          user_id: user?.id
         }
-        // createAsset(item ,handleCreateAssetResponse)
+        createAssetRequest(item).then((res) => {
+          console.log(res.data)
+          if(res.data.status === "success") {
+            handleCreateAssetResponse(res.data.data, res.data.message);
+          } else {
+            handleCreateAssetResponse(null, "An error occured");
+          }
+        })
+        .catch((res) => {
+          if(res?.response?.data) {
+            handleCreateAssetResponse(null, res?.response?.data.message);
+            return;
+          }
+          handleCreateAssetResponse(null, res.message);
+        })
     } else {
         setLoading(false);
         if(Platform.OS === "android") {
@@ -99,6 +115,7 @@ const AddAsset = ({ navigation }) => {
         }
     }
   }
+  
   return (
     <View 
       style={{
@@ -180,7 +197,7 @@ const AddAsset = ({ navigation }) => {
                 date={date}
                 setDate={setDate}
               />
-              <View style={[styles.imageContainer, {height: capturedImg ? 200 : 95}]}>
+              <View style={[styles.imageContainer, {height: capturedImg ? 200 : 95, position: "relative"}]}>
                 {
                   previewAvailable ? (
                     <Image source={{ uri:  capturedImg.uri }} style={{ height: 200, width: 200 }} />
@@ -188,9 +205,23 @@ const AddAsset = ({ navigation }) => {
                     <Text style={styles.placeholder}>No image captured</Text>
                   )
                 }
-                <TouchableOpacity style={styles.uploadBtn} onPress={initCamera}>
-                  <EvilIcons name="camera" size={28} color={"#fff"} />
-                </TouchableOpacity>
+                {
+                  !imageUploading && (
+                    <TouchableOpacity style={styles.uploadBtn} onPress={initCamera}>
+                      <EvilIcons name="camera" size={28} color={"#fff"} />
+                    </TouchableOpacity>
+                  )
+                }
+                {
+                  imageUploading && (
+                    <View style={styles.progressModal}>
+                      <Text style={{ fontSize: 20, fontFamily: "Nunito_700Bold", color: "white", marginBottom: 10 }}>{Math.ceil(uploadProgress)} %</Text>
+                      <View style={{ height: 5, width: "60%", backgroundColor: "#fff", borderRadius: 99 }}>
+                        <View style={{ height: "100%", width: `${uploadProgress}%`, backgroundColor: "#00b3faff", borderRadius: 99 }}></View>
+                      </View>
+                    </View>
+                  )
+                }
               </View>
               <TouchableOpacity style={styles.btn} onPress={handleCreateAsset}>
                 {loading ? <ActivityIndicator animating={true} color="#fff" /> : <Text style={styles.btnText}>Submit</Text>}
@@ -213,9 +244,9 @@ const styles = StyleSheet.create({
   imageContainer: {
     backgroundColor: "#fff",
     borderRadius: 15,
-    padding: 20,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    overflow: "hidden"
   },
   uploadBtn: {
     flexDirection: "row",
@@ -266,6 +297,15 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 20,
     top: 20
+  },
+  progressModal: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "absolute",
+    height: "100%",
+    width: "100%",
+    backgroundColor: "rgba(0,0,0,0.5)"
   }
 })
 

@@ -8,12 +8,12 @@ const AssetCard = ({ name, serialNo, imgSrc, navigation, id, status, returnSrc }
     })}>
       <View style={styles.imageContainer}>
         <View style={styles.cover}></View>
-        <Image source={{ uri:  status === "In possession" ? imgSrc : returnSrc }} style={{ height: 150, width: 150 }} />
+        <Image source={{ uri:  !status ? imgSrc : returnSrc }} style={{ height: 150, width: 150 }} />
       </View>
       <View style={styles.infoContainer}>
         <Text style={styles.name}>{name.length > 15 ? `${name.substring(0, 15)}...` : name}</Text>
         <Text style={styles.serialNo}>{serialNo}</Text>
-        <Text style={[styles.status, {color: status === "In possession" ? "green" : "red"}]}>{status}</Text>
+        <Text style={[styles.status, {color: !status ? "green" : "red"}]}>{status ? "Returned" : "In Possession"}</Text>
       </View>
     </TouchableOpacity>
   )

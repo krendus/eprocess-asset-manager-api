@@ -33,7 +33,6 @@ const Home = observer(({ navigation }) => {
   const handleGetAssets = () => {
     getAllAssetRequest()
     .then((res) => {
-      console.log(res.data)
       if(res.data.status === "success") {
         handleGetAssetsResponse(res.data.data, res.data.message);
       } else {
@@ -41,10 +40,7 @@ const Home = observer(({ navigation }) => {
       }
     })
     .catch((res) => {
-      console.log(res)
-     
       if(res?.response?.data) {
-        console.log(res?.response?.data)
         handleGetAssetsResponse(null, res?.response?.data.message);
         return;
       }
@@ -100,13 +96,13 @@ const Home = observer(({ navigation }) => {
                   assets.map((asset, i) => (
                     <AssetCard 
                       key={i}
-                      imgSrc={asset?.image ?? ""}
+                      imgSrc={asset?.imageURL ?? ""}
                       name={asset?.name}
-                      serialNo={asset?.serial_number ?? ""}
+                      serialNo={asset?.serialNumber ?? ""}
                       id={asset?.id ?? ""}
                       navigation={navigation}
-                      status={asset.status}
-                      returnSrc={asset.return_image}
+                      status={asset.isReturned}
+                      returnSrc={asset.returnImageURL}
                     />
                   ))
                 }

@@ -8,6 +8,7 @@ import AntDesign from 'react-native-vector-icons/AntDesign';
 import { useStatusStore } from '../../store/status.store';
 import { signOut } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAllAssetRequest } from '../../api/assets';
 // import { auth, getAllAsset } from '../../firebase';
 
 const Profile = observer(({ navigation }) => {
@@ -21,20 +22,33 @@ const Profile = observer(({ navigation }) => {
   }
   const [assets, setAssets] = useState([]);
 
-  const handleGetAssetsResponse = (data, err) => {
+  const handleGetAssetsResponse = (data, message) => {
     if(data) {
         setAssets(data);
     } else {
       if(Platform.OS === "android") {
-        ToastAndroid.show("Error fetching assets", ToastAndroid.SHORT)
+        ToastAndroid.show(message, ToastAndroid.SHORT)
       } else {    
-          Alert.alert("Error fetching assets", "Error fetching assets");
+          Alert.alert("Error", message);
       }
-        console.log(err);
     }
   }
   const handleGetAssets = () => {
-    // getAllAsset(user.id, handleGetAssetsResponse);
+    getAllAssetRequest()
+    .then((res) => {
+      if(res.data.status === "success") {
+        handleGetAssetsResponse(res.data.data, res.data.message);
+      } else {
+        handleGetAssetsResponse(null, "An error occured");
+      }
+    })
+    .catch((res) => {
+      if(res?.response?.data) {
+        handleGetAssetsResponse(null, res?.response?.data.message);
+        return;
+      }
+      handleGetAssetsResponse(null, res.message);
+    })
   }
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {

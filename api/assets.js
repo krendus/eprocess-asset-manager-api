@@ -9,3 +9,6 @@ export const getSingleAssetRequest = (id) => {
 export const getAllAssetRequest = () => {
     return axios.get("/assets");
 }
+export const returnAssetRequest = (data) => {
+    return axios.patch("/assets", data);
+}

@@ -8,6 +8,8 @@ import { Camera } from 'expo-camera';
 import DatePicker from '../../components/DatePicker';
 import { ToastAndroid } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
+import { returnAssetRequest } from '../../api/assets';
+import { uploadToCloudinary } from '../../utils/utils';
 
 const ReturnAsset = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
@@ -21,6 +23,8 @@ const ReturnAsset = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const { height, width } = Dimensions.get("window");
   const [camera, setCamera] = useState(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const initCamera = async () => {
     const { status } = await Camera.requestCameraPermissionsAsync();
@@ -53,21 +57,20 @@ const ReturnAsset = ({ navigation, route }) => {
       return {};
     }
   }
-  const handleReturnAssetResponse = (data, err) => {
+  const handleReturnAssetResponse = (data, message) => {
     setLoading(false);
-    if(!err) {
-        console.log("Assets created");
+    if(data) {
         if(Platform.OS === "android") {
-          ToastAndroid.show("Asset returned", ToastAndroid.SHORT)
+          ToastAndroid.show(message, ToastAndroid.SHORT)
         }
         navigation.navigate("Dashboard", {
           screen: "Home"
         })
     } else {
       if(Platform.OS === "android") {
-        ToastAndroid.show("Error returning asset", ToastAndroid.SHORT)
+        ToastAndroid.show(message, ToastAndroid.SHORT)
       } else {    
-          Alert.alert("Error returning asset", "Error returning asset");
+          Alert.alert("error", message);
       }
         console.log(err);
     }
@@ -76,14 +79,31 @@ const ReturnAsset = ({ navigation, route }) => {
     if(loading) return;
     setLoading(true);
     if (reason && capturedImg && date) {
+      setImageUploading(true);
+      setShowModal(false);
+      const uploadedImage = await uploadToCloudinary("samuraidev", capturedImg.uri, "asset", "839935435497676", "zjuuiycx", setUploadProgress)
       const item = {
-        status: "Returned",
-        return_date: date.toDateString(),
-        return_reason: reason,
-        return_image: capturedImg,
+        returnDate: date,
+        returnReason: reason,
+        returnImageURL: uploadedImage.secure_url,
         id,
       }
-      // updateAsset(item, handleReturnAssetResponse);
+      returnAssetRequest(item).then((res) => {
+        console.log(res.data)
+        if(res.data.status === "success") {
+          handleReturnAssetResponse(res.data.data, res.data.message);
+        } else {
+          handleReturnAssetResponse(null, "An error occured");
+        }
+      })
+      .catch((res) => {
+        if(res?.response?.data) {
+          console.log(res?.response?.data)
+          handleReturnAssetResponse(null, res?.response?.data.message);
+          return;
+        }
+        handleReturnAssetResponse(null, res.message);
+      })
     } else {
         setLoading(false);
         if(Platform.OS === "android") {
@@ -158,12 +178,26 @@ const ReturnAsset = ({ navigation, route }) => {
                     <Text style={styles.placeholder}>No image captured</Text>
                   )
                 }
-                <TouchableOpacity style={styles.uploadBtn} onPress={initCamera}>
-                  <EvilIcons name="camera" size={28} color={"#fff"} />
-                </TouchableOpacity>
+                {
+                  !imageUploading && (
+                    <TouchableOpacity style={styles.uploadBtn} onPress={initCamera}>
+                      <EvilIcons name="camera" size={28} color={"#fff"} />
+                    </TouchableOpacity>
+                  )
+                }
+                {
+                  imageUploading && (
+                    <View style={styles.progressModal}>
+                      <Text style={{ fontSize: 20, fontFamily: "Nunito_700Bold", color: "white", marginBottom: 10 }}>{Math.ceil(uploadProgress)} %</Text>
+                      <View style={{ height: 5, width: "60%", backgroundColor: "#fff", borderRadius: 99 }}>
+                        <View style={{ height: "100%", width: `${uploadProgress}%`, backgroundColor: "#00b3faff", borderRadius: 99 }}></View>
+                      </View>
+                    </View>
+                  )
+                }
               </View>
               <TouchableOpacity style={styles.btn} onPress={() => setShowModal(true)}>
-                <Text style={styles.btnText}>Return</Text>
+                {loading ? <ActivityIndicator animating={true} color="#fff" /> : <Text style={styles.btnText}>Return</Text>}
               </TouchableOpacity>
             </ScrollView>
           </>
@@ -200,9 +234,10 @@ const styles = StyleSheet.create({
   imageContainer: {
     backgroundColor: "#fff",
     borderRadius: 15,
-    padding: 20,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden"
   },
   uploadBtn: {
     flexDirection: "row",
@@ -304,6 +339,15 @@ const styles = StyleSheet.create({
     height: 40,
     borderWidth: 1,
     borderColor: "#00435e",
+  },
+  progressModal: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "absolute",
+    height: "100%",
+    width: "100%",
+    backgroundColor: "rgba(0,0,0,0.5)"
   }
 })
 

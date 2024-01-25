@@ -6,6 +6,7 @@ import EvilIcons from "react-native-vector-icons/EvilIcons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUserStore } from '../../store/user.store';
 import { ActivityIndicator } from 'react-native-paper';
+import { getSingleAssetRequest } from '../../api/assets';
 
 const ViewAsset = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
@@ -18,7 +19,6 @@ const ViewAsset = ({ route, navigation }) => {
     setLoading(false);
     setRefreshing(false);
     if(data) {
-        console.log("Asset Fetched");
         setAsset(data);
         console.log(asset);
     } else {
@@ -31,7 +31,21 @@ const ViewAsset = ({ route, navigation }) => {
     }
   }
   const handleGetSingleAsset = () => {
-    // getSingleAsset(id, handleGetAssetResponse);
+    getSingleAssetRequest(id)
+    .then((res) => {
+      if(res.data.status === "success") {
+        handleGetAssetResponse(res.data.data, res.data.message);
+      } else {
+        handleGetAssetResponse(null, "An error occured");
+      }
+    })
+    .catch((res) => {
+      if(res?.response?.data) {
+        handleGetAssetResponse(null, res?.response?.data.message);
+        return;
+      }
+      handleGetAssetResponse(null, res.message);
+    })
   }
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -72,12 +86,12 @@ const ViewAsset = ({ route, navigation }) => {
               }
             >
             {
-              asset?.status === "Returned" ? (
+              asset?.isReturned ? (
                 <View>
                   <View style={styles.imageGrid}>
-                    <Image source={{ uri: asset?.image }}  style={{ height: 300, width: Dimensions.get("window").width / 2 - 1 }} />
+                    <Image source={{ uri: asset?.imageURL }}  style={{ height: 300, width: Dimensions.get("window").width / 2 - 1 }} />
                     <View style={{ width: 2, backgroundColor: "#fff"}}></View>
-                    <Image source={{ uri: asset?.return_image }} style={{ height: 300, width:  Dimensions.get("window").width / 2 - 1 }} />
+                    <Image source={{ uri: asset?.returnImageURL }} style={{ height: 300, width:  Dimensions.get("window").width / 2 - 1 }} />
                   </View>
                   <View style={styles.cover}></View>
                   <View style={styles.tagLeft}>
@@ -91,7 +105,7 @@ const ViewAsset = ({ route, navigation }) => {
                 </View>
               ) : (
                 <View>
-                  <Image source={{ uri: asset?.status === "Returned" ? asset?.return_image : asset?.image }} style={{ height: 300, width: "100%" }} />
+                  <Image source={{ uri: asset?.isReturned ? asset?.returnImageURL : asset?.imageURL }} style={{ height: 300, width: "100%" }} />
                   <View style={styles.cover}></View>
                   <View style={styles.tagLeft}>
                     <EvilIcons name="image" size={14} color={"#00597D"}/>
@@ -105,7 +119,7 @@ const ViewAsset = ({ route, navigation }) => {
             </TouchableOpacity>
             <LinearGradient colors={["transparent", "#f3f3f3ab", "#f3f3f3"]} style={styles.overlay}>
                 <Text style={styles.heading}>{asset?.name}</Text>
-                <Text style={styles.label}>{asset?.serial_number}</Text>
+                <Text style={styles.label}>{asset?.serialNumber}</Text>
             </LinearGradient>
             <View style={{ padding: 15 }}>
                 <View style={styles.categoryContainer}> 
@@ -122,24 +136,24 @@ const ViewAsset = ({ route, navigation }) => {
                 </View>
                 <View style={styles.categoryContainer}>
                     <Text style={styles.categoryHead}>Received Date:</Text>
-                    <Text style={styles.categoryBody}>{asset?.received_date}</Text>
+                    <Text style={styles.categoryBody}>{(new Date(asset?.receivedDate)).toDateString()}</Text>
                 </View>
                 {
-                  asset?.status === "Returned" && (
+                  asset?.isReturned && (
                     <>
                       <View style={styles.categoryContainer}>
                           <Text style={styles.categoryHead}>Reason for return:</Text>
-                          <Text style={styles.categoryBody}>{asset?.return_reason}</Text>
+                          <Text style={styles.categoryBody}>{asset?.returnReason}</Text>
                       </View>
                       <View style={styles.categoryContainer}>
                           <Text style={styles.categoryHead}>Return Date:</Text>
-                          <Text style={styles.categoryBody}>{asset?.return_date}</Text>
+                          <Text style={styles.categoryBody}>{(new Date(asset?.returnDate)).toDateString()}</Text>
                       </View>
                     </>
                   )
                 }
                 {
-                  asset?.status === "In possession" && (
+                  !asset?.isReturned && (
                     <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate("ReturnAsset", {
                       id
                     })}>

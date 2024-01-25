@@ -76,8 +76,6 @@ const Register = ({ navigation }) => {
           }
         })
         .catch((res) => {
-          console.log(res)
-         
           if(res?.response?.data) {
             console.log(res?.response?.data)
             handleSignUpResponse(null, res?.response?.data.message);
