@@ -22,8 +22,7 @@ class UserStore {
   }
 }
 
-// Instantiate the counter store.
 const userStore = new UserStore();
-// Create a React Context with the counter store instance.
+
 export const UserStoreContext = React.createContext(userStore);
 export const useUserStore = () => React.useContext(UserStoreContext)
